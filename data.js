@@ -1,47 +1,67 @@
-const data = require('./data');
-
-function allocateByPower(devices, arr, hour, power) {
-  debugger;
-  const id = hour.device.shift();
-  if(arr[hour - devices.id - 1] >=0 ) {
-    arr[hour - devices.id - 1].devices.push(id);
-  }
-}
-
-function allocateByTime(devices = [], maxPower = 2100, duration = 24) {
-
-  const durationOfTime = [...(new Array(duration))].map(it => {
-    it = {};
-    it['power'] = 0;
-    it['devices'] = [];
-    return it;
-  });
-
-  devices.sort((a, b) => {
-    return b.power - a.power;
-  });
-
-  // ideal arrangement of devices without regard to power
-  devices.forEach(device => {
-    durationOfTime.reduceRight((prev, item)=>{
-      if(!prev) {
-        return;
-      }
-      item.devices.push(device.id);
-      item.power+=device.power;
-      return --prev;
-    },device.duration)
-  });
-
-  //
-
-  durationOfTime.forEach(hour => {
-    while (hour.power > maxPower) {
-      allocateByPower(devices, durationOfTime, hour, maxPower);
+const data = {
+  "devices": [
+    {
+      "id": "F9",
+      "name": "Посудомоечная машина",
+      "power": 950,
+      "duration": 3,
+      "mode": "night"
+    },
+    {
+      "id": "C5",
+      "name": "Духовка",
+      "power": 2000,
+      "duration": 2,
+      "mode": "day"
+    },
+    {
+      "id": "02",
+      "name": "Холодильник",
+      "power": 50,
+      "duration": 24
+    },
+    {
+      "id": "1E",
+      "name": "Термостат",
+      "power": 50,
+      "duration": 24
+    },
+    {
+      "id": "7D",
+      "name": "Кондиционер",
+      "power": 850,
+      "duration": 1,
+      "mode": "day"
     }
-  });
+  ],
+  "rates": [
+    {
+      "from": 7,
+      "to": 10,
+      "value": 6.46
+    },
+    {
+      "from": 10,
+      "to": 17,
+      "value": 5.38
+    },
+    {
+      "from": 17,
+      "to": 21,
+      "value": 6.46
+    },
+    {
+      "from": 21,
+      "to": 23,
+      "value": 5.38
+    },
+    {
+      "from": 23,
+      "to": 7,
+      "value": 1.79
+    }
+  ],
+  "maxPower": 2100
+};
 
-
-}
-
-allocateByTime(data.devices, data.maxPower);
+module.exports = data;

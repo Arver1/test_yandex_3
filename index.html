@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+</head>
+<body>
+<script>
+  const data = {
+    "devices": [
+      {
+        "id": "F9",
+        "name": "Посудомоечная машина",
+        "power": 950,
+        "duration": 3,
+        "mode": "night"
+      },
+      {
+        "id": "C5",
+        "name": "Духовка",
+        "power": 2000,
+        "duration": 2,
+        "mode": "day"
+      },
+      {
+        "id": "02",
+        "name": "Холодильник",
+        "power": 50,
+        "duration": 24
+      },
+      {
+        "id": "1E",
+        "name": "Термостат",
+        "power": 50,
+        "duration": 24
+      },
+      {
+        "id": "7D",
+        "name": "Кондиционер",
+        "power": 850,
+        "duration": 1,
+        "mode": "day"
+      }
+    ],
+    "rates": [
+      {
+        "from": 7,
+        "to": 10,
+        "value": 6.46
+      },
+      {
+        "from": 10,
+        "to": 17,
+        "value": 5.38
+      },
+      {
+        "from": 17,
+        "to": 21,
+        "value": 6.46
+      },
+      {
+        "from": 21,
+        "to": 23,
+        "value": 5.38
+      },
+      {
+        "from": 23,
+        "to": 7,
+        "value": 1.79
+      }
+    ],
+    "maxPower": 2100
+  };
+  allocateDevices(data);
+
+  function allocateDevices(data) {
+    if(checkValidateData(data) && checkValidateFieldData(data)) {
+      try {
+        allocateByTime(data.devices, data.maxPower, data.rates);
+      } catch(e) {
+        console.log(e);
+      }
+    }
+  }
+
+  function checkValidateData(data) {
+    if(data === null || data === undefined) {
+      console.log('Данные об устройствах не переданы');
+      return false;
+    }
+    if(typeof data !== 'object') {
+      try {
+        const data = JSON.parse(data);
+        console.log('Данные пришли в JSON формате');
+        allocateDevices(data);
+      } catch (e) {
+        console.log('Неизвестный формат данных')
+      }
+      return false;
+    }
+    if(!('devices' in data)) {
+      console.log('Поле devices отсутствует');
+      return false;
+    }
+    if(!('rates' in data)) {
+      console.log('Поле rates отсутствует');
+      return false;
+    }
+    if(!('maxPower' in data)) {
+      console.log('Поле maxPower отсутствует');
+      return false;
+    }
+    return true;
+  }
+
+  function checkValidateFieldData(data) {
+    return checkFieldMaxPower(data.maxPower) && checkFieldRates(data.rates) && checkFieldDevices(data.devices);
+  }
+
+  function checkFieldMaxPower(maxPower) {
+    if(isNumber(maxPower)) {
+      if(maxPower === 0 || maxPower <= 0) {
+        console.log('Поле maxPower не может быть < или = 0');
+        return false;
+      }
+      return true;
+    } else {
+      console.log('Поле maxPower не число');
+      return false;
+    }
+  }
+
+  function isNumber(number) {
+    return !isNaN(parseFloat(number)) && isFinite(number);
+  }
+
+  function checkFieldRates(rates) {
+    if(Array.isArray(rates)) {
+      if(rates.length === 0) {
+        console.log('массив rates пустой');
+        return false;
+      }
+      return rates.every((it, index )=> {
+        if(typeof it === 'object') {
+          if(it.from && it.to && it.value) {
+            if(!isNumber(it.from)) {
+              console.log(`Значение поля from элемента ${index} массива rates не число`);
+              return false;
+            }
+            if(!isNumber(it.to)) {
+              console.log(`Значение поля to элемента ${index} массива rates не число`);
+              return false;
+            }
+            if(!isNumber(it.value)) {
+              console.log(`Значение поля to элемента ${index} массива rates не число`);
+              return false;
+            }
+          } else {
+            console.log(`Каждый элемент rates должен иметь поле from, to, value : ${index}`);
+            return false;
+          }
+          return true;
+        } else {
+          console.log(`Каждый элемент rates должен быть объектом : ${index}`);
+          return false;
+        }
+      });
+    } else {
+      console.log('Поле rates не массив');
+      return false;
+    }
+  }
+
+  function checkFieldDevices(devices) {
+    if(Array.isArray(devices)) {
+      if(devices.length === 0) {
+        console.log('массив devices пустой');
+        return false;
+      }
+      return devices.every((it, index )=> {
+        if(typeof it === 'object') {
+          if(it.id && it.name && it.power && it.duration) {
+            if(typeof it.id !== 'string') {
+              console.log(`Значение поля id элемента ${index} массива devices не строка`);
+              return false;
+            }
+            if(typeof it.name !== 'string') {
+              console.log(`Значение поля name элемента ${index} массива devices не строка`);
+              return false;
+            }
+            if(!isNumber(it.power)) {
+              console.log(`Значение поля power элемента ${index} массива devices не число`);
+              return false;
+            }
+            if(!isNumber(it.duration)) {
+              console.log(`Значение поля duration элемента ${index} массива devices не число`);
+              return false;
+            }
+          } else {
+            console.log(`Каждый элемент devices должен иметь поле id, name, power, duration : ${index}`);
+            return false;
+          }
+          return true;
+        } else {
+          console.log(`Каждый элемент devices должен быть объектом : ${index}`);
+          return false;
+        }
+      });
+    } else {
+      console.log('Поле devices не массив');
+      return false;
+    }
+  }
+
+  function allocateByPower(devices, arr, hour, index) {
+    const id = hour.devices.shift();
+    const device = devices.find(el => el.id === id);
+    const shiftIndex = index - device.duration;
+    if(shiftIndex >= 0 ) {
+      const powerDevice = device.power;
+      hour.power -= powerDevice;
+      let i =0;
+      while(powerDevice < arr[shiftIndex].devices[i+1]){
+        i++;
+      }
+      arr[shiftIndex].devices.splice(i,0,id);
+      arr[shiftIndex].power+=powerDevice;
+    } else {
+      hour.devices.push(id);
+    }
+  }
+
+  function allocateDevicesMode(dayDevices, devices, maxPower, durationOfTime, mode) {
+    dayDevices.sort((a, b) => {
+      return b.power - a.power;
+    });
+
+    dayDevices.forEach(device => {
+      let duration = device.duration;
+      for (let i = durationOfTime.length - 1; duration > 0; duration--, i--) {
+        if (i < 0) throw {
+          name: 'ошибка распределения',
+          message: `продолжительность работы прибора ${device.name} больше, чем диапозон mode: ${mode}`
+        };
+        durationOfTime[i].devices.push(device.id);
+        durationOfTime[i].power += device.power;
+      }
+    });
+
+    for (let i = durationOfTime.length - 1; i >= 0; i--) {
+      let amount = durationOfTime[i].devices.length;
+
+      while (durationOfTime[i].power > maxPower) {
+        if (amount >= 0) {
+          allocateByPower(devices, durationOfTime, durationOfTime[i], i);
+          amount--;
+        } else {
+          throw {name: 'ошибка распределения', message: `невозможно распределить mode: ${mode}`};
+        }
+      }
+    }
+  }
+
+  function getArrayDuration(duration) {
+    return [...(new Array(duration))].map(it => {
+      it = {};
+      it['power'] = 0;
+      it['devices'] = [];
+      return it;
+    });
+  }
+
+  function allocateByTime(devices = [], maxPower = 2100, rates) {
+
+    const nightDevices = [];
+    const mornDevices = [];
+    const otherDevices = [];
+    const durationOfDay = [];
+    const hourPower = [...new Array(24)].fill(2100);
+    {
+      const durationOfMorn = getArrayDuration(14);
+      const durationOfNight = getArrayDuration(10);
+
+      devices.forEach(it => {
+        switch (it.mode) {
+          case 'day':
+            mornDevices.push(it);
+            break;
+          case 'night':
+            nightDevices.push(it);
+            break;
+          default:
+            otherDevices.push(it);
+        }
+      });
+      allocateDevicesMode(mornDevices, devices, maxPower, durationOfMorn, 'day');
+      allocateDevicesMode(nightDevices, devices, maxPower, durationOfNight, 'night');
+      durationOfMorn.forEach(({power}, index) => {
+        if (power) {
+          hourPower[index] -= power;
+        }
+      });
+      durationOfNight.forEach(({power}, index) => {
+        if (power) {
+          hourPower[index + 14] -= power;
+        }
+      });
+    }
+    console.log(hourPower);
+  }
+</script>
+</body>
+</html>

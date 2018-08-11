@@ -1,0 +1,23 @@
+{
+  "name": "test_yandex_3",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha index.text.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arver1/test_yandex_3.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Arver1/test_yandex_3/issues"
+  },
+  "homepage": "https://github.com/Arver1/test_yandex_3#readme",
+  "devDependencies": {
+    "mocha": "^5.2.0"
+  }
+}
