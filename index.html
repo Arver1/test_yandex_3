@@ -230,7 +230,7 @@
     }
   }
 
-  function allocateDevicesMode(dayDevices, devices, maxPower, durationOfTime, mode) {
+  function allocateDevicesMode(dayDevices, devices, maxPower, durationOfTime, mode = 'allDay') {
     dayDevices.sort((a, b) => {
       return b.power - a.power;
     });
@@ -241,37 +241,6 @@
         if (i < 0) throw {
           name: 'ошибка распределения',
           message: `продолжительность работы прибора ${device.name} больше, чем диапозон mode: ${mode}`
-        };
-        durationOfTime[i].devices.push(device.id);
-        durationOfTime[i].power += device.power;
-      }
-    });
-
-    for (let i = durationOfTime.length - 1; i >= 0; i--) {
-      let amount = durationOfTime[i].devices.length;
-
-      while (durationOfTime[i].power > maxPower) {
-        if (amount >= 0) {
-          allocateByPower(devices, durationOfTime, durationOfTime[i], i);
-          amount--;
-        } else {
-          throw {name: 'ошибка распределения', message: `невозможно распределить mode: ${mode}`};
-        }
-      }
-    }
-  }
-
-  function allocateDevicesWithoutMode(dayDevices, devices, maxPower, durationOfTime) {
-    dayDevices.sort((a, b) => {
-      return b.power - a.power;
-    });
-
-    dayDevices.forEach(device => {
-      let duration = device.duration;
-      for (let i = durationOfTime.length - 1; duration > 0; duration--, i--) {
-        if (i < 0) throw {
-          name: 'ошибка распределения',
-          message: `продолжительность работы прибора больше, чем 24 часа`
         };
         durationOfTime[i].devices.push(device.id);
         durationOfTime[i].power += device.power;
@@ -324,8 +293,8 @@
         }
       });
 
-      allocateDevicesMode(mornDevices, devices, maxPower, durationOfMorn, 'day');
-      allocateDevicesMode(nightDevices, devices, maxPower, durationOfNight, 'night');
+      allocateDevicesMode(mornDevices, devices, hourPower, durationOfMorn, 'day');
+      allocateDevicesMode(nightDevices, devices, hourPower, durationOfNight, 'night');
 
       durationOfMorn.forEach(({power}, index) => {
         if (power) {
@@ -340,7 +309,7 @@
       });
     }
 
-    allocateDevicesWithoutMode(otherDevices, devices, hourPower, durationOfDay);
+    allocateDevicesMode(otherDevices, devices, hourPower, durationOfDay);
 
     durationOfMorn.forEach((hour, index) => {
       if (hour.devices.length) {

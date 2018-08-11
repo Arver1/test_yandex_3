@@ -159,7 +159,7 @@ function allocateByPower(devices, arr, hour, index) {
   }
 }
 
-function allocateDevicesMode(dayDevices, devices, maxPower, durationOfTime, mode) {
+function allocateDevicesMode(dayDevices, devices, maxPower, durationOfTime, mode = 'allDay') {
   dayDevices.sort((a, b) => {
     return b.power - a.power;
   });
@@ -170,37 +170,6 @@ function allocateDevicesMode(dayDevices, devices, maxPower, durationOfTime, mode
       if (i < 0) throw {
         name: 'ошибка распределения',
         message: `продолжительность работы прибора ${device.name} больше, чем диапозон mode: ${mode}`
-      };
-      durationOfTime[i].devices.push(device.id);
-      durationOfTime[i].power += device.power;
-    }
-  });
-
-  for (let i = durationOfTime.length - 1; i >= 0; i--) {
-    let amount = durationOfTime[i].devices.length;
-
-    while (durationOfTime[i].power > maxPower) {
-      if (amount >= 0) {
-        allocateByPower(devices, durationOfTime, durationOfTime[i], i);
-        amount--;
-      } else {
-        throw {name: 'ошибка распределения', message: `невозможно распределить mode: ${mode}`};
-      }
-    }
-  }
-}
-
-function allocateDevicesWithoutMode(dayDevices, devices, maxPower, durationOfTime) {
-  dayDevices.sort((a, b) => {
-    return b.power - a.power;
-  });
-
-  dayDevices.forEach(device => {
-    let duration = device.duration;
-    for (let i = durationOfTime.length - 1; duration > 0; duration--, i--) {
-      if (i < 0) throw {
-        name: 'ошибка распределения',
-        message: `продолжительность работы прибора больше, чем 24 часа`
       };
       durationOfTime[i].devices.push(device.id);
       durationOfTime[i].power += device.power;
@@ -236,7 +205,7 @@ function allocateByTime(devices = [], maxPower = 2100, rates) {
   const durationOfNight = getArrayDuration(10);
   const durationOfDay = getArrayDuration(24);
   const otherDevices = [];
-  const hourPower = [...new Array(24)].fill(2100);
+  const hourPower = [...new Array(24)].fill(maxPower);
   {
     const nightDevices = [];
     const mornDevices = [];
@@ -253,8 +222,8 @@ function allocateByTime(devices = [], maxPower = 2100, rates) {
       }
     });
 
-    allocateDevicesMode(mornDevices, devices, maxPower, durationOfMorn, 'day');
-    allocateDevicesMode(nightDevices, devices, maxPower, durationOfNight, 'night');
+    allocateDevicesMode(mornDevices, devices, hourPower, durationOfMorn, 'day');
+    allocateDevicesMode(nightDevices, devices, hourPower, durationOfNight, 'night');
 
     durationOfMorn.forEach(({power}, index) => {
       if (power) {
@@ -269,7 +238,7 @@ function allocateByTime(devices = [], maxPower = 2100, rates) {
     });
   }
 
-  allocateDevicesWithoutMode(otherDevices, devices, hourPower, durationOfDay);
+  allocateDevicesMode(otherDevices, devices, hourPower, durationOfDay);
 
   durationOfMorn.forEach((hour, index) => {
     if (hour.devices.length) {
