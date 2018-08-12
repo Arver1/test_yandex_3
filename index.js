@@ -5,11 +5,41 @@ allocateDevices(data);
 function allocateDevices(data) {
   if(checkValidateData(data) && checkValidateFieldData(data)) {
     try {
-      allocateByTime(data.devices, data.maxPower, data.rates);
+      const schedule = allocateByTime(data.devices, data.maxPower);
+      const rates = allocateRates(data.rates);
+
+      console.log(schedule);
+
+      const totalEnergy = schedule.reduce((prev, {power}, index) => {
+        return prev + power * rates[index] / 1000;
+      }, 0);
+
+      console.log(totalEnergy);
     } catch(e) {
-      console.log(e);
+      console.log(e.mesage);
     }
   }
+}
+
+function allocateRates(rates) {
+  let arr = [...new Array(24)].fill(0);
+  rates.forEach((it) => {
+    if(it.from === it.to) {
+      for(let i = 0; i < 24; i++) {
+        arr[i] = it.value
+      }
+    } else {
+      for(let i = it.from; i !== it.to; i++) {
+        if(i === 24) {
+          i = 0;
+        }
+        arr[i] = it.value;
+      }
+    }
+  });
+  const shift = arr.splice(0,7);
+  arr.push(...shift);
+  return arr;
 }
 
 function checkValidateData(data) {
@@ -82,6 +112,14 @@ function checkFieldRates(rates) {
           }
           if(!isNumber(it.value)) {
             console.log(`Значение поля to элемента ${index} массива rates не число`);
+            return false;
+          }
+          if(it.from < 0 || it.from > 23) {
+            console.log(`Значение поля from элемента ${index} массива rates не может быть меньше 0 или больше 23 `);
+            return false;
+          }
+          if(it.to < 0 || it.to > 23) {
+            console.log(`Значение поля to элемента ${index} массива rates не может быть меньше 0 или больше 23 `);
             return false;
           }
         } else {
@@ -161,7 +199,7 @@ function allocateByPower(devices, arr, hour, index) {
 
 function allocateDevicesMode(dayDevices, devices, maxPower, durationOfTime, mode = 'allDay') {
   dayDevices.sort((a, b) => {
-    return b.power - a.power;
+    return a.power - b.power;
   });
 
   dayDevices.forEach(device => {
@@ -199,7 +237,7 @@ function getArrayDuration(duration) {
   });
 }
 
-function allocateByTime(devices = [], maxPower = 2100, rates) {
+function allocateByTime(devices = [], maxPower = 2100) {
 
   const durationOfMorn = getArrayDuration(14);
   const durationOfNight = getArrayDuration(10);
@@ -254,7 +292,7 @@ function allocateByTime(devices = [], maxPower = 2100, rates) {
     }
   });
 
-  console.log(durationOfDay);
+  return durationOfDay;
 }
 
 module.exports = {
