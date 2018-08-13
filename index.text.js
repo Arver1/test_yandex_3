@@ -1,6 +1,6 @@
 const assert = require('assert');
-const { allocateDevices } = require('./index');
-const { notValidPowerDay, notValidPowerNight } = require('./test/index');
+const { allocateDevices, allocateByTime } = require('./index');
+const { notValidPowerDay, notValidPowerNight, notValidDayDuration, extremDayDuration } = require('./test/index');
 
 describe('function allocateDevices',() => {
   it('without params', () => {
@@ -83,14 +83,28 @@ describe('function allocateDevices',() => {
       allocateDevices({devices: [{id: 'test', name: 'test', power: '200', duration: 4}], maxPower: 0, rates: [{"from": 23, "to": 7, "value": 1.79}]})
     });
   });
-  it('test field notValidPowerDay', () => {
+  it('test notValidPowerDay', () => {
     assert.doesNotThrow(() => {
       allocateDevices(notValidPowerDay)
     });
   });
-  it('test field notValidPowerNight', () => {
+  it('test notValidPowerNight', () => {
     assert.doesNotThrow(() => {
       allocateDevices(notValidPowerNight)
     });
   });
+  it('test notValidDurationDay', () => {
+    assert.doesNotThrow(() => {
+      allocateDevices(notValidDayDuration)
+    });
+  });
 });
+
+describe('function allocateByTime', () => {
+  it('test extremDurationDay', () => {
+    assert.doesNotThrow(() => {
+      allocateByTime(extremDayDuration.devices, extremDayDuration.maxPower)
+    });
+  })
+});
+

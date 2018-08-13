@@ -9,14 +9,13 @@ function allocateDevices(data) {
       const rates = allocateRates(data.rates);
 
       console.log(schedule);
-
       const totalEnergy = schedule.reduce((prev, {power}, index) => {
         return prev + power * rates[index] / 1000;
       }, 0);
 
       console.log(totalEnergy);
     } catch(e) {
-      console.log(e.mesage);
+      console.log(e);
     }
   }
 }
@@ -186,7 +185,7 @@ function allocateByPower(devices, arr, hour, index) {
   if(shiftIndex >= 0 ) {
     const powerDevice = device.power;
     hour.power -= powerDevice;
-    let i =0;
+    let i = 0;
     while(powerDevice < arr[shiftIndex].devices[i+1]){
       i++;
     }
@@ -237,6 +236,157 @@ function getArrayDuration(duration) {
   });
 }
 
+function searchDayDevices(durationOfDay, hourPower, devices){
+  const tempArr = [];
+  for(let i = 14; i < 24; i++) {
+    tempArr.push(...durationOfDay[i].devices);
+  }
+
+  const nightDevices = new Set(tempArr);
+  tempArr.length = 0;
+
+  for(let i = 0; i < 14; i++) {
+    durationOfDay[i].devices.forEach((it, index) => {
+      if(!nightDevices.has(it)) {
+        durationOfDay.splice(index, 1);
+        tempArr.push(it);
+      } else {
+        const device = devices.find(el => el.id === it);
+        hourPower[i] -= device.power;
+      }
+    })
+  }
+  //мощность hourPower по остальным часам нет смысла изменять так как дальше распределение только дня
+  return [...new Set(tempArr)];
+}
+
+function allocateDayDevices(mornDevices,  devices, maxPower, durationOfMorn, durationOfDay){
+  mornDevices.sort((a, b) => {
+    if(a.power === b.power) {
+      return a.duration - b.duration;
+    }
+    return a.power - b.power;
+  });
+  mornDevices.forEach((device) => {
+    const halfDuration = device.duration / 2 ^ 0;
+    const startDuration = 7 - halfDuration;
+    if(startDuration < 0) {
+      throw {name: 'ошибка распределения', message: `продолжительность работы прибора ${device.name} больше, чем диапозон mode: day`};
+    } else {
+      for(let i = 0; i < device.duration; i++) {
+        durationOfMorn[startDuration + i].power += device.power;
+        durationOfMorn[startDuration + i].devices.push(device.id);
+      }
+    }
+  });
+
+  for (let i = durationOfMorn.length - 1; i > 7; i--) {
+    let amount = durationOfMorn[i].devices.length;
+    while (durationOfMorn[i].power > maxPower[i]) {
+      if (amount >= 0) {
+        allocateByPower(devices, durationOfMorn, durationOfMorn[i], i);
+        amount--;
+      } else {
+        throw {name: 'ошибка распределения', message: `ограничение по мощности с 14 дня до 21 вечера`};
+      }
+    }
+  }
+
+  for(let i = 7; i >= 0; i--) {
+    let amount = durationOfMorn[i].devices.length;
+    while (durationOfMorn[i].power > maxPower[i]) {
+      if (amount >= 0) {
+        const id = durationOfMorn[i].devices.shift();
+        const device = devices.find(el => el.id === id);
+        if(device.duration <= i - 1) {
+          durationOfMorn.forEach((it, num) => {
+            const index = it.devices.indexOf(id);
+            if(~index) {
+              it.devices.splice(index,1);
+              durationOfMorn[num].power-= device.power;
+            }
+          });
+          durationOfMorn[i].power-= device.power;
+          let duration = device.duration;
+          for(let j = i - 1; duration > 0; j--) {
+            durationOfMorn[j].devices.push(id);
+            durationOfMorn[j].power+= device.power;
+            duration--;
+          }
+        } else if(device.duration <= 6) {
+          durationOfMorn.forEach((it, num) => {
+            const index = it.devices.indexOf(id);
+            if(~index) {
+              it.devices.splice(index,1);
+              durationOfMorn[num].power-= device.power;
+            }
+          });
+          durationOfMorn[i].power-= device.power;
+          let duration = device.duration;
+          for(let j = 8; duration > 0; j++) {
+            durationOfMorn[j].devices.push(id);
+            durationOfMorn[j].power+= device.power;
+            duration--;
+          }
+        }
+        else {
+          durationOfMorn[i].devices.push(id);
+        }
+        amount--;
+      } else {
+        throw {name: 'ошибка распределения', message: `невозможно распределить mode: day`};
+      }
+    }
+    if(durationOfMorn[i].devices.length !== 0) {
+      durationOfMorn[i].devices.forEach((id) => {
+        const device = devices.find(el => el.id === id);
+        let duration = device.duration;
+        let index = 0;
+        while(durationOfMorn[index].devices.indexOf(id) === -1) {
+          index++;
+        }
+        while(duration > 0) {
+          durationOfDay[index].devices.push(id);
+          durationOfDay[index].power += device.power;
+          maxPower[index] -= device.power;
+
+          const item = durationOfMorn[index].devices.indexOf(id);
+          durationOfMorn[index].devices.splice(item, 1);
+          durationOfMorn[index].power -= device.power;
+          index++;
+          duration--;
+        }
+      })
+    }
+  }
+
+  for(let i = 8; i <= 13; i++) {
+    let amount = durationOfMorn[i].devices.length;
+    while (durationOfMorn[i].power > maxPower[i]) {
+      if (amount >= 0) {
+        const id = durationOfMorn[i].devices.shift();
+        const device = devices.find(el => el.id === id);
+        const shiftIndex = i + device.duration;
+        if(shiftIndex <= 13) {
+          const powerDevice = device.power;
+          durationOfMorn[i].power -= powerDevice;
+          let current = 0;
+          while(powerDevice < durationOfMorn[shiftIndex].devices[current+1]){
+            current++;
+          }
+          durationOfMorn[shiftIndex].devices.splice(current,0,id);
+          durationOfMorn[shiftIndex].power+=powerDevice;
+        } else {
+          durationOfMorn[i].devices.push(id);
+        }
+        amount--;
+      } else {
+        throw {name: 'ошибка распределения', message: `невозможно распределить mode: day вторая половина`};
+      }
+    }
+  }
+}
+
 function allocateByTime(devices = [], maxPower = 2100) {
 
   const durationOfMorn = getArrayDuration(14);
@@ -244,9 +394,9 @@ function allocateByTime(devices = [], maxPower = 2100) {
   const durationOfDay = getArrayDuration(24);
   const otherDevices = [];
   const hourPower = [...new Array(24)].fill(maxPower);
+  const mornDevices = [];
   {
     const nightDevices = [];
-    const mornDevices = [];
     devices.forEach(it => {
       switch (it.mode) {
         case 'day':
@@ -260,14 +410,7 @@ function allocateByTime(devices = [], maxPower = 2100) {
       }
     });
 
-    allocateDevicesMode(mornDevices, devices, hourPower, durationOfMorn, 'day');
     allocateDevicesMode(nightDevices, devices, hourPower, durationOfNight, 'night');
-
-    durationOfMorn.forEach(({power}, index) => {
-      if (power) {
-        hourPower[index] -= power;
-      }
-    });
 
     durationOfNight.forEach(({power}, index) => {
       if (power) {
@@ -278,13 +421,6 @@ function allocateByTime(devices = [], maxPower = 2100) {
 
   allocateDevicesMode(otherDevices, devices, hourPower, durationOfDay);
 
-  durationOfMorn.forEach((hour, index) => {
-    if (hour.devices.length) {
-      durationOfDay[index].devices.push(...hour.devices);
-      durationOfDay[index].power +=  hour.power;
-    }
-  });
-
   durationOfNight.forEach((hour, index) => {
     if (hour.devices.length) {
       durationOfDay[index + 14].devices.push(...hour.devices);
@@ -292,9 +428,22 @@ function allocateByTime(devices = [], maxPower = 2100) {
     }
   });
 
+  mornDevices.push(...searchDayDevices(durationOfDay, hourPower, devices));
+
+  allocateDayDevices(mornDevices,  devices, hourPower, durationOfMorn, durationOfDay);
+
+  durationOfMorn.forEach((hour, index) => {
+    if (hour.devices.length) {
+      durationOfDay[index].devices.push(...hour.devices);
+      durationOfDay[index].power +=  hour.power;
+    }
+  });
+
   return durationOfDay;
+
 }
 
 module.exports = {
-  allocateDevices
+  allocateDevices,
+  allocateByTime
 };
