@@ -1,19 +1,41 @@
 const data = require('./data');
 
-allocateDevices(data);
+const output = allocateDevices(data);
+console.log(output);
 
 function allocateDevices(data) {
   if(checkValidateData(data) && checkValidateFieldData(data)) {
+    const idPower = {};
+    const output = {
+      schedule: {},
+      consumedEnergy: {
+        value: 0,
+        devices: {}
+      }
+    };
+    data.devices.forEach(({id, power}) => {
+      output.consumedEnergy.devices[id] = 0;
+      idPower[id] = power;
+    });
     try {
       const schedule = allocateByTime(data.devices, data.maxPower);
       const rates = allocateRates(data.rates);
 
-      console.log(schedule);
-      const totalEnergy = schedule.reduce((prev, {power}, index) => {
+      schedule.forEach(({devices}, index) => {
+        output.schedule[index] = devices;
+      });
+
+      output.consumedEnergy.value = schedule.reduce((prev, {power, devices}, index) => {
+        devices.forEach((it) => {
+          output.consumedEnergy.devices[it] += +idPower[it] * rates[index] / 1000;
+        });
         return prev + power * rates[index] / 1000;
       }, 0);
-
-      console.log(totalEnergy);
+      output.consumedEnergy.value = +output.consumedEnergy.value.toFixed(4);
+      for(let device in output.consumedEnergy.devices) {
+        output.consumedEnergy.devices[device] = +output.consumedEnergy.devices[device].toFixed(4);
+      }
+      return output;
     } catch(e) {
       console.log(e);
     }
